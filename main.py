@@ -1,6 +1,8 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
+from typing import Any, Dict
 
 app = FastAPI()
 
@@ -19,6 +21,25 @@ def read_root():
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+@app.get("/api/health")
+def health() -> Dict[str, Any]:
+    return {"status": "ok"}
+
+# Contact form endpoint using MongoDB
+@app.post("/api/contact")
+def submit_contact(payload: Dict[str, Any]):
+    try:
+        # Validate using schema
+        from schemas import ContactMessage
+        from database import create_document
+        data = ContactMessage(**payload)
+        doc_id = create_document("contactmessage", data)
+        return {"success": True, "id": doc_id}
+    except ValidationError as ve:
+        raise HTTPException(status_code=422, detail=ve.errors())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test")
 def test_database():
